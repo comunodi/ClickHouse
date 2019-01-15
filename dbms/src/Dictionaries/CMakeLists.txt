@@ -40,4 +40,8 @@ if(USE_POCO_MONGODB)
     target_link_libraries(clickhouse_dictionaries PRIVATE ${Poco_MongoDB_LIBRARY})
 endif()
 
+if(USE_POCO_REDIS)
+    target_link_libraries(clickhouse_dictionaries PRIVATE ${Poco_Redis_LIBRARY})
+endif()
+
 add_subdirectory(Embedded)
