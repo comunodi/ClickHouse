@@ -221,3 +221,16 @@ endif ()
 if (USE_BASE64)
     add_subdirectory (base64-cmake)
 endif()
+
+if (USE_COUCHBASE)
+    # delete 'uninstall' target that already used in Poco
+    execute_process (COMMAND bash -c "sed -iq '/uninstall/,+1d' ${ClickHouse_SOURCE_DIR}/contrib/couchbase/c-client/CMakeLists.txt")
+
+    set(LCB_NO_TESTS 1)
+    set(LCB_NO_PLUGINS 1)
+    add_subdirectory(couchbase/c-client)
+    unset(LCB_NO_TESTS)
+    unset(LCB_NO_PLUGINS)
+
+    add_subdirectory(couchbase/cpp-wrapper)
+endif()

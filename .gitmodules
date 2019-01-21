@@ -64,3 +64,9 @@
 [submodule "contrib/cppkafka"]
 	path = contrib/cppkafka
 	url = https://github.com/mfontanini/cppkafka.git
+[submodule "contrib/couchbase/c-client"]
+	path = contrib/couchbase/c-client
+	url = https://github.com/couchbase/libcouchbase.git
+[submodule "contrib/couchbase/cpp-wrapper"]
+	path = contrib/couchbase/cpp-wrapper
+	url = https://github.com/couchbaselabs/libcouchbase-cxx.git
