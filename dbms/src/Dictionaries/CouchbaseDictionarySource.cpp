@@ -41,41 +41,58 @@ void registerDictionarySourceCouchbase(DictionarySourceFactory & factory)
 #    include <libcouchbase/couchbase++.h>
 #    include <libcouchbase/couchbase++/views.h>
 #    include <libcouchbase/couchbase++/query.h>
-#    include <libcouchbase/couchbase++/endure.h>
-#    include <libcouchbase/couchbase++/logging.h>
 
 #    include <Columns/ColumnString.h>
 #    include <DataTypes/DataTypeString.h>
 #    include <IO/WriteBufferFromString.h>
 #    include <IO/WriteHelpers.h>
 #    include <common/LocalDateTime.h>
+
 #    include <common/logger_useful.h>
+
 #    include "CouchbaseBlockInputStream.h"
 
 
 namespace DB
 {
+namespace ErrorCodes
+{
+    extern const int TYPE_MISMATCH;
+    extern const int BAD_CONNECTION_STRING;
+    extern const int N1QL_EXECUTION_ERROR;
+}
+
 static const UInt64 max_block_size = 8192;
 
 
 CouchbaseDictionarySource::CouchbaseDictionarySource(
         const DictionaryStructure & dict_struct_,
-        const std::string & host,
-        UInt16 port,
+        const std::string & scheme,
+        const std::string & hosts,
+        const std::string & bucket,
         const std::string & password,
         const std::string & user,
+        const std::string & table,
         const Block & sample_block)
         : log(&Logger::get("CouchbaseDictionarySource"))
         , dict_struct(dict_struct_)
-        , host(host)
-        , port(port)
+        , scheme(scheme)
+        , hosts(hosts)
+        , bucket(bucket)
         , password(password)
         , user(user)
+        , table(table)
         , sample_block(sample_block)
-        , query_builder{dict_struct, "", "", "", IdentifierQuotingStyle::Backticks}
+        , query_builder{dict_struct, bucket, table, "", IdentifierQuotingStyle::Backticks}
         , load_all_query{query_builder.composeLoadAllQuery()}
-        , client{std::make_unique<Couchbase::Client>(toConnectionString(host, port), password, user)}
+        , client{std::make_unique<Couchbase::Client>(toConnectionString(scheme, hosts, bucket), password, user)}
 {
+    Couchbase::Status status = client->connect();
+    if (!status) {
+        std::stringstream ss;
+        ss << "Cannot connect to Couchbase: " << status.description();
+        throw Exception{ss.str(), ErrorCodes::BAD_CONNECTION_STRING};
+    }
 }
 
 
@@ -86,10 +103,12 @@ CouchbaseDictionarySource::CouchbaseDictionarySource(
         const Block & sample_block)
         : CouchbaseDictionarySource(
         dict_struct_,
-        config.getString(config_prefix + ".host"),
-        config.getUInt(config_prefix + ".port", 0),
+        config.getString(config_prefix + ".scheme", "couchbase"),
+        config.getString(config_prefix + ".hosts"),
+        config.getString(config_prefix + ".bucket", "default"),
         config.getString(config_prefix + ".password", ""),
         config.getString(config_prefix + ".user", ""),
+        config.getString(config_prefix + ".table"),
         sample_block)
 {
 }
@@ -98,10 +117,12 @@ CouchbaseDictionarySource::CouchbaseDictionarySource(
 /// copy-constructor is provided in order to support cloneability
 CouchbaseDictionarySource::CouchbaseDictionarySource(const CouchbaseDictionarySource & other)
         : CouchbaseDictionarySource{other.dict_struct,
-                                    other.host,
-                                    other.port,
+                                    other.scheme,
+                                    other.hosts,
+                                    other.bucket,
                                     other.password,
                                     other.user,
+                                    other.table,
                                     other.sample_block}
 {
 }
@@ -151,12 +172,15 @@ DictionarySourcePtr CouchbaseDictionarySource::clone() const
 
 std::string CouchbaseDictionarySource::toString() const
 {
-    return "Couchbase: " + toConnectionString(host, port);
+    return "Couchbase: " + toConnectionString(scheme, hosts, bucket);
 }
 
-std::string CouchbaseDictionarySource::toConnectionString(const std::string & host, const UInt16 port)
+std::string CouchbaseDictionarySource::toConnectionString(
+        const std::string & scheme,
+        const std::string & hosts,
+        const std::string & bucket)
 {
-    return host + (port != 0 ? ":" + DB::toString(port) : "");
+    return scheme + "://" + hosts + "/" + bucket);
 }
 
 }

@@ -21,10 +21,12 @@ class CouchbaseDictionarySource final : public IDictionarySource
 public:
     CouchbaseDictionarySource(
             const DictionaryStructure & dict_struct_,
-            const std::string & host,
-            UInt16 port,
+            const std::string & scheme,
+            const std::string & hosts,
+            const std::string & bucket,
             const std::string & password,
             const std::string & user,
+            const std::string & table,
             const Block & sample_block);
 
     CouchbaseDictionarySource(
@@ -58,16 +60,18 @@ public:
     std::string toString() const override;
 
 private:
-    static std::string toConnectionString(const std::string & host, const UInt16 port);
+    static std::string toConnectionString(const std::string & scheme, const std::string & hosts, const std::string & bucket);
 
     Poco::Logger * log;
 
     const DictionaryStructure dict_struct;
 
-    const std::string host;
-    const UInt16 port;
+    const std::string scheme;
+    const std::string hosts;
+    const std::string bucket;
     const std::string password;
     const std::string user;
+    const std::string table;
 
     Block sample_block;
 

@@ -7,6 +7,9 @@
 namespace Couchbase
 {
 class Client;
+class Status;
+class Query;
+class QueryCommand;
 }
 
 namespace DB
@@ -16,7 +19,7 @@ class CouchbaseBlockInputStream final : public IBlockInputStream
 public:
     CouchbaseBlockInputStream(
             Couchbase::Client & client,
-            const std::string & query,
+            const std::string & statement,
             const Block & sample_block,
             const size_t max_block_size);
 
@@ -29,8 +32,9 @@ public:
 private:
     Block readImpl() override;
 
-    Couchbase::Client & client;
-    Couchbase::Buffer result; // JSON response
+    Couchbase::Status status;
+    Couchbase::QueryCommand query_command;
+    Couchbase::Query query;
     const size_t max_block_size;
     ExternalResultDescription description;
 };
